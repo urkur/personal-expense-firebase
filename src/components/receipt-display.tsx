@@ -28,7 +28,7 @@ export function ReceiptDisplay({ receipt }: ReceiptDisplayProps) {
     day: 'numeric',
   });
 
-  const currencyFormatter = new Intl.NumberFormat('en-US', {
+  const currencyFormatter = new Intl.NumberFormat(receipt.language || 'en-US', {
     style: 'currency',
     currency: receipt.currency || 'USD',
   });
@@ -72,7 +72,7 @@ export function ReceiptDisplay({ receipt }: ReceiptDisplayProps) {
       </CardContent>
       <CardFooter>
         <div className="flex-grow space-y-2 text-sm">
-            {receipt.tax && (
+            {receipt.tax != null && (
                 <div className="flex justify-between">
                     <p className="text-muted-foreground">Tax</p>
                     <p>{currencyFormatter.format(receipt.tax)}</p>
