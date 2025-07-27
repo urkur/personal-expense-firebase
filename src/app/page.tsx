@@ -25,9 +25,9 @@ import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { UserNav } from '@/components/user-nav';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, query, where, getDocs, orderBy, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
 
-type ReceiptWithId = ExtractReceiptDataOutput & { id: string, firestoreId?: string };
+type ReceiptWithId = ExtractReceiptDataOutput & { id: string, firestoreId?: string, createdAt: any };
 
 export default function Home() {
   const [receipts, setReceipts] = useState<ReceiptWithId[]>([]);
@@ -62,8 +62,15 @@ export default function Home() {
       const querySnapshot = await getDocs(q);
       const fetchedReceipts: ReceiptWithId[] = [];
       querySnapshot.forEach((doc) => {
-        const data = doc.data() as ExtractReceiptDataOutput;
-        fetchedReceipts.push({ ...data, id: doc.id, firestoreId: doc.id });
+        const data = doc.data();
+        // Convert Firestore Timestamp to Date object if it exists
+        const receiptData = {
+          ...data,
+          date: data.date, 
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+        } as ExtractReceiptDataOutput & { createdAt: Date };
+
+        fetchedReceipts.push({ ...receiptData, id: doc.id, firestoreId: doc.id });
       });
       setReceipts(fetchedReceipts);
       localStorage.setItem('receipts', JSON.stringify(fetchedReceipts));
@@ -84,18 +91,20 @@ export default function Home() {
 
     try {
       const result = await extractReceiptData({ photoDataUri });
+      const creationDate = new Date();
 
       // Save to Firestore
       const docRef = await addDoc(collection(db, "receipts"), {
         ...result,
         userId: user.uid,
-        createdAt: serverTimestamp(),
+        createdAt: Timestamp.fromDate(creationDate),
       });
 
       const newReceipt: ReceiptWithId = {
         ...result,
-        id: new Date().toISOString(), // Still use temp ID for immediate UI update
+        id: creationDate.toISOString(), // Still use temp ID for immediate UI update
         firestoreId: docRef.id,
+        createdAt: creationDate,
       };
 
       const updatedReceipts = [newReceipt, ...receipts];
