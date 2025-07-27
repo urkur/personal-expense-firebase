@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/accordion';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertTriangle, FileText, MessageSquare, Loader2, Camera, Upload, Video, VideoOff, Database } from 'lucide-react';
+import { AlertTriangle, FileText, MessageSquare, Loader2, Camera, Upload, Video, VideoOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -25,7 +25,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { UserNav } from '@/components/user-nav';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, query, where, getDocs, orderBy, Timestamp, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dashboard } from '@/components/dashboard';
 
@@ -202,127 +202,6 @@ export default function Home() {
     }
   }
 
-  async function addSampleData() {
-    if (!user) return;
-    setIsProcessing(true);
-    try {
-      const sampleReceipts = [
-        {
-          date: '2025-05-10',
-          storeName: 'Grocery Mart',
-          total: 75.5,
-          tax: 5.5,
-          currency: 'USD',
-          items: [
-            { name: 'Milk', amount: 3.5, quantity: 1, category: 'grocery' },
-            { name: 'Bread', amount: 2.5, quantity: 1, category: 'grocery' },
-            { name: 'Eggs', amount: 4.5, quantity: 1, category: 'grocery' },
-            { name: 'Chicken Breast', amount: 15.0, quantity: 2, category: 'grocery' },
-            { name: 'Apples', amount: 5.0, quantity: 1, category: 'grocery' },
-          ],
-        },
-        {
-          date: '2025-05-22',
-          storeName: 'Tech Stop',
-          total: 1299.99,
-          tax: 99.99,
-          currency: 'USD',
-          items: [{ name: 'Laptop', amount: 1200.0, quantity: 1, category: 'electronics' }],
-        },
-        {
-          date: '2025-06-05',
-          storeName: 'Home Decor',
-          total: 145.0,
-          tax: 12.0,
-          currency: 'USD',
-          items: [
-            { name: 'Vase', amount: 45.0, quantity: 1, category: 'home' },
-            { name: 'Scented Candle', amount: 25.0, quantity: 2, category: 'home' },
-            { name: 'Photo Frame', amount: 25.0, quantity: 2, category: 'home' },
-          ],
-        },
-         {
-          date: '2025-06-18',
-          storeName: 'Book Nook',
-          total: 55.75,
-          tax: 4.75,
-          currency: 'USD',
-          items: [
-            { name: 'Sci-Fi Novel', amount: 25.0, quantity: 1, category: 'other' },
-            { name: 'Bookmark', amount: 5.0, quantity: 1, category: 'other' },
-            { name: 'Journal', amount: 20.0, quantity: 1, category: 'other' },
-          ],
-        },
-        {
-          date: '2025-07-01',
-          storeName: 'The Corner Cafe',
-          total: 12.50,
-          tax: 1.0,
-          currency: 'USD',
-          items: [
-            { name: 'Latte', amount: 5.5, quantity: 1, category: 'other' },
-            { name: 'Croissant', amount: 6.0, quantity: 1, category: 'other' },
-          ],
-        },
-        {
-          date: '2025-07-15',
-          storeName: 'Grocery Mart',
-          total: 95.25,
-          tax: 7.25,
-          currency: 'USD',
-          items: [
-            { name: 'Salmon', amount: 22.0, quantity: 1, category: 'grocery' },
-            { name: 'Avocado', amount: 4.0, quantity: 2, category: 'grocery' },
-            { name: 'Salad Mix', amount: 6.0, quantity: 1, category: 'grocery' },
-            { name: 'Olive Oil', amount: 12.0, quantity: 1, category: 'grocery' },
-          ],
-        },
-         {
-          date: '2025-07-28',
-          storeName: 'Clothing Co',
-          total: 180.0,
-          tax: 15.0,
-          currency: 'USD',
-          items: [
-            { name: 'T-Shirt', amount: 25.0, quantity: 2, category: 'clothing' },
-            { name: 'Jeans', amount: 80.0, quantity: 1, category: 'clothing' },
-          ],
-        },
-      ];
-
-      const batch = writeBatch(db);
-      sampleReceipts.forEach(receipt => {
-          const docRef = addDoc(collection(db, `receipts`), { id: '' }).id; // just to get a new ID
-          const newDocRef = collection(db, 'receipts').doc(docRef);
-          batch.set(newDocRef, {
-              ...receipt,
-              userId: user.uid,
-              createdAt: Timestamp.fromDate(new Date(receipt.date)),
-          });
-      });
-      await batch.commit();
-      
-      toast({
-        title: 'Sample Data Loaded',
-        description: 'Your dashboard is now populated with sample receipts.',
-      });
-
-      // Refetch the data
-      await fetchReceipts();
-
-    } catch (e) {
-      console.error('Error adding sample data:', e);
-      toast({
-        variant: 'destructive',
-        title: 'Error Loading Data',
-        description: 'Could not load sample receipts. Please try again.',
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  }
-
-
   if (loading || !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -451,11 +330,7 @@ export default function Home() {
               <div className="text-center text-muted-foreground py-12">
                 <FileText size={48} className="mx-auto mb-4" />
                 <h3 className="text-lg font-semibold">No receipts yet</h3>
-                <p>Upload your first receipt or load sample data to see your history.</p>
-                <Button onClick={addSampleData} disabled={isProcessing} className="mt-4">
-                    {isProcessing ? <Loader2 className="animate-spin" /> : <Database />}
-                    <span className="ml-2">Load Sample Data</span>
-                </Button>
+                <p>Upload your first receipt to get started.</p>
               </div>
             )}
           </div>
