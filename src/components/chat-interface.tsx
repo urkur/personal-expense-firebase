@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { type ExtractReceiptDataOutput } from '@/ai/flows/extract-receipt-data';
 import { useAuth } from '@/hooks/use-auth';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
 
 interface Message {
   sender: 'user' | 'ai';
@@ -38,7 +38,13 @@ export function ChatInterface() {
         const querySnapshot = await getDocs(q);
         const fetchedReceipts: ExtractReceiptDataOutput[] = [];
         querySnapshot.forEach((doc) => {
-          fetchedReceipts.push(doc.data() as ExtractReceiptDataOutput);
+          const data = doc.data();
+          // Convert Firestore Timestamp to a plain, serializable object (string).
+          const plainData = {
+            ...data,
+            createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : new Date().toISOString(),
+          }
+          fetchedReceipts.push(plainData as ExtractReceiptDataOutput);
         });
         setReceipts(fetchedReceipts);
       } catch (e) {
