@@ -40,7 +40,13 @@ function createReceiptObject(receipt: GenerateWalletPassInput, objectId: string)
   
   // The date is now expected to be in YYYY-MM-DD format from the extraction flow.
   // The Date constructor handles this format reliably.
-  const receiptDate = new Date(receipt.date);
+  let receiptDate = new Date(receipt.date);
+  // Check if the date is valid. If not, use the current date as a fallback.
+  if (isNaN(receiptDate.getTime())) {
+    console.warn(`Invalid date format received: "${receipt.date}". Falling back to current date.`);
+    receiptDate = new Date();
+  }
+
 
   const passObject = {
     id: `${ISSUER_ID}.${objectId}`,
