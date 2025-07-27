@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/accordion';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertTriangle, FileText, MessageSquare, Loader2, Camera, Upload, Video, VideoOff, PlusCircle } from 'lucide-react';
+import { AlertTriangle, FileText, MessageSquare, Loader2, Camera, Upload, Video, VideoOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -35,7 +35,6 @@ export default function Home() {
   const [receipts, setReceipts] = useState<ReceiptWithId[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
-  const [isAddingSamples, setIsAddingSamples] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { user, loading } = useAuth();
@@ -46,6 +45,10 @@ export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // Ref to track if we've already tried adding sample data for this session
+  const sampleDataCheckRef = useRef(false);
+
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
@@ -53,8 +56,9 @@ export default function Home() {
   }, [user, loading, router]);
 
   useEffect(() => {
-    if (user) {
-      fetchReceipts();
+    if (user && !sampleDataCheckRef.current) {
+      fetchReceiptsAndAddSamplesIfEmpty();
+      sampleDataCheckRef.current = true;
     }
 
     // Cleanup camera stream on component unmount
@@ -111,102 +115,8 @@ export default function Home() {
     }
   };
   
-
-  async function fetchReceipts() {
-    if (!user) return;
-    setIsLoadingHistory(true);
-    try {
-      const q = query(
-        collection(db, 'receipts'),
-        where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc')
-      );
-      const querySnapshot = await getDocs(q);
-      const fetchedReceipts: ReceiptWithId[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        fetchedReceipts.push({
-          ...(data as ExtractReceiptDataOutput),
-          id: doc.id,
-          firestoreId: doc.id,
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-        });
-      });
-      setReceipts(fetchedReceipts);
-    } catch (e) {
-      console.error('Error fetching receipts:', e);
-      setError('Failed to fetch receipt history.');
-    } finally {
-      setIsLoadingHistory(false);
-    }
-  }
-
-
-  async function processReceipt(photoDataUri: string) {
-    if (isProcessing || !user) return;
-
-    setIsProcessing(true);
-    setError(null);
-
-    try {
-      const result = await extractReceiptData({ photoDataUri });
-      const creationTimestamp = Timestamp.now();
-
-      // Save to Firestore
-      const docRef = await addDoc(collection(db, "receipts"), {
-        ...result,
-        userId: user.uid,
-        createdAt: creationTimestamp,
-      });
-
-      const newReceipt: ReceiptWithId = {
-        ...result,
-        id: docRef.id,
-        firestoreId: docRef.id,
-        createdAt: creationTimestamp.toDate(),
-      };
-
-      setReceipts(prevReceipts => [newReceipt, ...prevReceipts]);
-
-      toast({
-        title: "Success!",
-        description: `Receipt from ${result.storeName} processed and saved.`,
-      })
-    } catch (e) {
-      console.error(e);
-      const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred.';
-      setError(`Failed to process receipt. Please try again. Error: ${errorMessage}`);
-      toast({
-        variant: "destructive",
-        title: "Processing Failed",
-        description: "There was an error extracting data from your receipt.",
-      })
-    } finally {
-      setIsProcessing(false);
-    }
-  }
-  
-  function handleCapture() {
-    if (!videoRef.current || !canvasRef.current) return;
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    const context = canvas.getContext('2d');
-    if (context) {
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg');
-      processReceipt(dataUrl);
-      stopCamera();
-    }
-  }
-  
   async function addSampleData() {
     if (!user) return;
-    setIsAddingSamples(true);
     
     const getPastDate = (monthsToSubtract: number): Date => {
       const date = new Date();
@@ -291,10 +201,10 @@ export default function Home() {
         await batch.commit();
 
         toast({
-            title: 'Sample Data Added',
-            description: 'Your dashboard is now populated.',
+            title: 'Welcome!',
+            description: 'We\'ve added some sample data to get you started.',
         });
-        await fetchReceipts();
+        return true; // Indicate that data was added
     } catch (e) {
         console.error('Error adding sample data:', e);
         toast({
@@ -302,8 +212,116 @@ export default function Home() {
             title: 'Error',
             description: 'Could not add sample data.',
         });
+        return false; // Indicate failure
+    }
+  }
+  
+  async function fetchReceiptsAndAddSamplesIfEmpty() {
+    if (!user) return;
+    setIsLoadingHistory(true);
+    try {
+      const q = query(
+        collection(db, 'receipts'),
+        where('userId', '==', user.uid)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        const added = await addSampleData();
+        if (!added) { // If adding data failed, don't try to fetch again
+          setReceipts([]);
+          setIsLoadingHistory(false);
+          return;
+        }
+      }
+
+      // Fetch again after potentially adding samples
+      const finalQuery = query(
+        collection(db, 'receipts'),
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc')
+      );
+      const finalSnapshot = await getDocs(finalQuery);
+      const fetchedReceipts: ReceiptWithId[] = [];
+      finalSnapshot.forEach((doc) => {
+        const data = doc.data();
+        fetchedReceipts.push({
+          ...(data as ExtractReceiptDataOutput),
+          id: doc.id,
+          firestoreId: doc.id,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+        });
+      });
+      setReceipts(fetchedReceipts);
+
+    } catch (e) {
+      console.error('Error fetching receipts:', e);
+      setError('Failed to fetch receipt history.');
     } finally {
-        setIsAddingSamples(false);
+      setIsLoadingHistory(false);
+    }
+  }
+
+
+  async function processReceipt(photoDataUri: string) {
+    if (isProcessing || !user) return;
+
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      const result = await extractReceiptData({ photoDataUri });
+      const creationTimestamp = Timestamp.now();
+
+      // Save to Firestore
+      const docRef = await addDoc(collection(db, "receipts"), {
+        ...result,
+        userId: user.uid,
+        createdAt: creationTimestamp,
+      });
+
+      const newReceipt: ReceiptWithId = {
+        ...result,
+        id: docRef.id,
+        firestoreId: docRef.id,
+        createdAt: creationTimestamp.toDate(),
+      };
+
+      setReceipts(prevReceipts => [newReceipt, ...prevReceipts]);
+
+      toast({
+        title: "Success!",
+        description: `Receipt from ${result.storeName} processed and saved.`,
+      })
+    } catch (e) {
+      console.error(e);
+      const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred.';
+      setError(`Failed to process receipt. Please try again. Error: ${errorMessage}`);
+      toast({
+        variant: "destructive",
+        title: "Processing Failed",
+        description: "There was an error extracting data from your receipt.",
+      })
+    } finally {
+      setIsProcessing(false);
+    }
+  }
+  
+  function handleCapture() {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const context = canvas.getContext('2d');
+    if (context) {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg');
+      processReceipt(dataUrl);
+      stopCamera();
     }
   }
 
@@ -435,15 +453,7 @@ export default function Home() {
               <div className="text-center text-muted-foreground py-12">
                 <FileText size={48} className="mx-auto mb-4" />
                 <h3 className="text-lg font-semibold">No receipts yet</h3>
-                <p>Upload your first receipt or load sample data to see your history.</p>
-                 <Button onClick={addSampleData} disabled={isAddingSamples} className="mt-4">
-                  {isAddingSamples ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                  )}
-                  {isAddingSamples ? 'Adding...' : 'Load Sample Data'}
-                </Button>
+                <p>Upload your first receipt to see your history.</p>
               </div>
             )}
           </div>
