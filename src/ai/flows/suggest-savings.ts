@@ -41,7 +41,7 @@ const prompt = ai.definePrompt({
 
 Spending Data: {{{spendingData}}}
 
-Provide clear and actionable suggestions for the user to cut costs and save money.
+Provide clear, actionable, and very brief (one or two sentences) suggestions for the user to cut costs and save money. The response should be short and crisp.
 `,config: {
     safetySettings: [
       {
