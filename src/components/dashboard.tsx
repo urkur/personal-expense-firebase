@@ -1,9 +1,10 @@
 
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import type { ExtractReceiptDataOutput } from '@/ai/flows/extract-receipt-data';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { suggestSavings } from '@/ai/flows/suggest-savings';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   ChartContainer,
   ChartTooltip,
@@ -11,8 +12,10 @@ import {
   ChartConfig,
 } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell, Legend } from 'recharts';
-import { Loader2, TrendingUp, PieChart as PieChartIcon, BarChart2, DollarSign } from 'lucide-react';
+import { Loader2, TrendingUp, PieChart as PieChartIcon, BarChart2, DollarSign, Lightbulb } from 'lucide-react';
 import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 type Receipt = ExtractReceiptDataOutput & { createdAt: Date };
 
@@ -25,25 +28,25 @@ const chartConfig: ChartConfig = {
   total: {
     label: 'Total Spending',
   },
-  // We can add specific categories here if needed for consistent colors
 };
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
 
 export function Dashboard({ receipts, isLoading }: DashboardProps) {
+  const [suggestions, setSuggestions] = useState('');
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const { toast } = useToast();
 
   const { monthlyCategoryData, lastThreeMonthsData, totalThisMonth } = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
     
-    // 1. Calculate spending by category for the current month
     const categorySpending: { [key: string]: number } = {};
     let totalForMonth = 0;
 
     receipts.forEach(receipt => {
-      // The receipt.date is 'YYYY-MM-DD' which can be parsed reliably
       const receiptDate = new Date(receipt.date);
       if (receiptDate.getMonth() === currentMonth && receiptDate.getFullYear() === currentYear) {
         totalForMonth += receipt.total;
@@ -59,8 +62,6 @@ export function Dashboard({ receipts, isLoading }: DashboardProps) {
         value,
     })).sort((a,b) => b.value - a.value);
 
-
-    // 2. Calculate total spending for the last 3 months
     const monthlyTotals: { [key: string]: number } = {};
     for (let i = 2; i >= 0; i--) {
         const d = new Date(currentYear, currentMonth - i, 1);
@@ -90,6 +91,44 @@ export function Dashboard({ receipts, isLoading }: DashboardProps) {
 
     return { monthlyCategoryData, lastThreeMonthsData, totalThisMonth: totalForMonth };
   }, [receipts]);
+  
+  const getSuggestions = async () => {
+    if (!receipts.length) {
+        toast({
+            variant: "default",
+            title: "Not enough data",
+            description: "Upload some receipts to get savings suggestions.",
+        });
+        return;
+    }
+    setIsLoadingSuggestions(true);
+    try {
+        const spendingData = JSON.stringify({
+            monthlyCategoryData,
+            lastThreeMonthsData,
+            totalThisMonth
+        });
+        const result = await suggestSavings({ spendingData });
+        setSuggestions(result.savingsSuggestions);
+    } catch(e) {
+        console.error("Error getting suggestions:", e);
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to get savings suggestions."
+        })
+    } finally {
+        setIsLoadingSuggestions(false);
+    }
+  }
+  
+  useEffect(() => {
+    // Automatically fetch suggestions if there are receipts but no suggestions yet.
+    if (receipts.length > 0 && !suggestions && !isLoadingSuggestions) {
+        getSuggestions();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [receipts.length]);
 
 
   if (isLoading) {
@@ -123,6 +162,41 @@ export function Dashboard({ receipts, isLoading }: DashboardProps) {
                 </Badge>
             </CardHeader>
         </Card>
+
+        {receipts.length > 0 && (
+             <Card className="shadow-lg">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Lightbulb /> AI Savings Advisor
+                    </CardTitle>
+                    <CardDescription>
+                        Get personalized tips based on your recent spending.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {isLoadingSuggestions ? (
+                        <div className="flex items-center justify-center h-24">
+                            <Loader2 className="h-8 w-8 animate-spin" />
+                        </div>
+                    ) : suggestions ? (
+                        <div className="prose prose-sm dark:prose-invert text-card-foreground">
+                            <p>{suggestions}</p>
+                        </div>
+                    ) : (
+                         <div className="text-center text-muted-foreground py-4">
+                            <p>Click the button to generate savings suggestions.</p>
+                        </div>
+                    )}
+                </CardContent>
+                <CardFooter>
+                    <Button onClick={getSuggestions} disabled={isLoadingSuggestions}>
+                        {isLoadingSuggestions ? <Loader2 className="mr-2 animate-spin" /> : <Lightbulb />}
+                        {isLoadingSuggestions ? 'Analyzing...' : 'Get New Suggestions'}
+                    </Button>
+                </CardFooter>
+            </Card>
+        )}
+
         <div className="grid gap-4 md:grid-cols-2">
         <Card className="shadow-lg">
             <CardHeader>
