@@ -29,7 +29,7 @@ const ExtractReceiptDataOutputSchema = z.object({
       category: z.string().optional().describe('The category of the item (e.g., kitchen, grocery, sports, home, electronics, clothing).'),
     })
   ).describe('The items on the receipt.'),
-  date: z.string().describe('The date of the receipt.'),
+  date: z.string().describe('The date of the receipt in YYYY-MM-DD format.'),
   storeName: z.string().describe('The name of the store.'),
   total: z.number().describe('The total amount of the receipt.'),
   tax: z.number().optional().describe('The total tax amount of the receipt.'),
@@ -49,6 +49,8 @@ const prompt = ai.definePrompt({
   prompt: `You are an expert AI assistant specializing in extracting data from receipts.
 
 You will use this information to extract the items, amounts, date, store name, total, tax, currency, and language from the receipt.
+
+The date must be in YYYY-MM-DD format.
 
 For each item, categorize it into one of the following: "kitchen", "grocery", "sports", "home", "electronics", "clothing", or other relevant categories.
 

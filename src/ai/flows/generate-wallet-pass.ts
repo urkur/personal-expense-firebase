@@ -38,7 +38,9 @@ function createReceiptObject(receipt: GenerateWalletPassInput, objectId: string)
     quantity: item.quantity || 1,
   }));
   
-  const validDate = new Date(receipt.date).toISOString();
+  // The date is now expected to be in YYYY-MM-DD format from the extraction flow.
+  // The Date constructor handles this format reliably.
+  const receiptDate = new Date(receipt.date);
 
   const passObject = {
     id: `${ISSUER_ID}.${objectId}`,
@@ -64,7 +66,7 @@ function createReceiptObject(receipt: GenerateWalletPassInput, objectId: string)
       {
         id: 'date',
         header: 'Date',
-        body: new Date(validDate).toLocaleDateString(),
+        body: receiptDate.toLocaleDateString(),
       }
     ],
     lineItems: lineItems,
