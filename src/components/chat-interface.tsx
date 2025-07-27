@@ -74,9 +74,13 @@ export function ChatInterface() {
     setIsSending(true);
 
     try {
+      // Get current date in YYYY-MM-DD format
+      const currentDate = new Date().toISOString().split('T')[0];
+
       const result = await understandSpendingHabits({
         question: input,
         receipts: receipts,
+        currentDate: currentDate,
       });
       const aiMessage: Message = { sender: 'ai', text: result.insight };
       setMessages((prev) => [...prev, aiMessage]);

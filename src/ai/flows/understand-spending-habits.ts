@@ -15,6 +15,7 @@ import { ExtractReceiptDataOutput } from './extract-receipt-data';
 const UnderstandSpendingHabitsInputSchema = z.object({
   question: z.string().describe('The question about spending habits.'),
   receipts: z.array(z.any()).describe('A list of receipts to analyze.'),
+  currentDate: z.string().describe('The current date in YYYY-MM-DD format.'),
 });
 export type UnderstandSpendingHabitsInput = z.infer<typeof UnderstandSpendingHabitsInputSchema>;
 
@@ -31,14 +32,16 @@ const prompt = ai.definePrompt({
   name: 'understandSpendingHabitsPrompt',
   input: {schema: UnderstandSpendingHabitsInputSchema},
   output: {schema: UnderstandSpendingHabitsOutputSchema},
-  prompt: `You are a personal finance advisor. A user has asked the following question about their spending habits: {{{question}}}. 
+  prompt: `You are a personal finance advisor. A user has asked the following question about their spending habits: {{{question}}}.
+
+The current date is {{{currentDate}}}. Please use this to answer any time-relative questions (e.g., "last month", "this week").
 
 Here is their receipt data:
 \`\`\`json
 {{{json receipts}}}
 \`\`\`
 
-Based on their past spending data, provide a concise and helpful insight. Answer the user's question. If the user asks for something that is not in the data, say that you do not have that information.
+Based on their past spending data, provide a concise and helpful insight. Answer the user's question. If the user asks for something that is not in the data, or if there is no data for the requested period, say that you do not have that information or that the spending was zero.
 `,
 });
 
