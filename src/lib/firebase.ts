@@ -7,7 +7,8 @@ const firebaseConfig = {
     "storageBucket": "raseed-lite-u6e5l.firebasestorage.app",
     "apiKey": "AIzaSyDMIDy2sofinIo_lqa7ji2PLwT2-_xp2K4",
     "authDomain": "raseed-lite-u6e5l.firebaseapp.com",
-    "messagingSenderId": "576324904463"
+    "messagingSenderId": "576324904463",
+    "measurementId": ""
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
