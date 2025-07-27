@@ -1,6 +1,7 @@
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { Timestamp } from 'firebase-admin/firestore';
+import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
   try {
@@ -122,7 +123,7 @@ async function addSampleData(userId: string) {
     ];
 
     sampleReceipts.forEach(receipt => {
-        const docRef = adminDb.collection('receipts').doc();
+        const docRef = adminDb.collection('receipts').doc(uuidv4());
         batch.set(docRef, {
             ...receipt,
             userId: userId,
