@@ -41,9 +41,9 @@ Here is all the receipt data you have access to:
 {{{json receipts}}}
 \`\`\`
 
-Based ONLY on the provided receipt data, provide a concise and helpful insight to answer the user's question. 
-It is very important that you do not make up information. 
-If you do not have any data for the requested period, you MUST clearly state that you do not have the information or that the spending for that period was zero. Do not provide data from other periods.
+Based ONLY on the provided receipt data, provide a concise and helpful insight to answer the user's question.
+It is very important that you do not make up information or provide data from other periods.
+If you do not have any data for the requested period, you MUST clearly state that you do not have the information for that period and nothing else. For example, if asked about "last month" and there is no data, say "I do not have any spending data for last month." Do not mention other dates or spending.
 `,
 });
 
