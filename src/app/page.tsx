@@ -25,7 +25,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { UserNav } from '@/components/user-nav';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, orderBy, Timestamp, writeBatch, doc } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dashboard } from '@/components/dashboard';
 
@@ -110,7 +110,121 @@ export default function Home() {
     }
   };
   
-  async function fetchReceipts() {
+  async function addSampleData() {
+    if (!user) return;
+    const batch = writeBatch(db);
+    const sampleReceipts = [
+      {
+        date: '2025-05-10',
+        storeName: 'Grocery Mart',
+        total: 75.5,
+        tax: 5.5,
+        currency: 'USD',
+        items: [
+          { name: 'Milk', amount: 3.5, quantity: 1, category: 'grocery' },
+          { name: 'Bread', amount: 2.5, quantity: 1, category: 'grocery' },
+          { name: 'Eggs', amount: 4.5, quantity: 1, category: 'grocery' },
+          { name: 'Chicken Breast', amount: 15.0, quantity: 2, category: 'grocery' },
+          { name: 'Apples', amount: 5.0, quantity: 1, category: 'grocery' },
+        ],
+      },
+      {
+        date: '2025-05-22',
+        storeName: 'Tech Stop',
+        total: 1299.99,
+        tax: 99.99,
+        currency: 'USD',
+        items: [{ name: 'Laptop', amount: 1200.0, quantity: 1, category: 'electronics' }],
+      },
+      {
+        date: '2025-06-05',
+        storeName: 'Home Decor',
+        total: 145.0,
+        tax: 12.0,
+        currency: 'USD',
+        items: [
+          { name: 'Vase', amount: 45.0, quantity: 1, category: 'home' },
+          { name: 'Scented Candle', amount: 25.0, quantity: 2, category: 'home' },
+          { name: 'Photo Frame', amount: 25.0, quantity: 2, category: 'home' },
+        ],
+      },
+       {
+        date: '2025-06-18',
+        storeName: 'Book Nook',
+        total: 55.75,
+        tax: 4.75,
+        currency: 'USD',
+        items: [
+          { name: 'Sci-Fi Novel', amount: 25.0, quantity: 1, category: 'other' },
+          { name: 'Bookmark', amount: 5.0, quantity: 1, category: 'other' },
+          { name: 'Journal', amount: 20.0, quantity: 1, category: 'other' },
+        ],
+      },
+      {
+        date: '2025-07-01',
+        storeName: 'The Corner Cafe',
+        total: 12.50,
+        tax: 1.0,
+        currency: 'USD',
+        items: [
+          { name: 'Latte', amount: 5.5, quantity: 1, category: 'other' },
+          { name: 'Croissant', amount: 6.0, quantity: 1, category: 'other' },
+        ],
+      },
+      {
+        date: '2025-07-15',
+        storeName: 'Grocery Mart',
+        total: 95.25,
+        tax: 7.25,
+        currency: 'USD',
+        items: [
+          { name: 'Salmon', amount: 22.0, quantity: 1, category: 'grocery' },
+          { name: 'Avocado', amount: 4.0, quantity: 2, category: 'grocery' },
+          { name: 'Salad Mix', amount: 6.0, quantity: 1, category: 'grocery' },
+          { name: 'Olive Oil', amount: 12.0, quantity: 1, category: 'grocery' },
+        ],
+      },
+       {
+        date: '2025-07-28',
+        storeName: 'Clothing Co',
+        total: 180.0,
+        tax: 15.0,
+        currency: 'USD',
+        items: [
+          { name: 'T-Shirt', amount: 25.0, quantity: 2, category: 'clothing' },
+          { name: 'Jeans', amount: 80.0, quantity: 1, category: 'clothing' },
+        ],
+      },
+    ];
+
+    sampleReceipts.forEach(receipt => {
+        const docRef = doc(collection(db, 'receipts'));
+        batch.set(docRef, {
+            ...receipt,
+            userId: user.uid,
+            createdAt: Timestamp.fromDate(new Date(receipt.date)),
+        });
+    });
+
+    try {
+        await batch.commit();
+        toast({
+            title: 'Welcome!',
+            description: "We've added some sample data to get you started.",
+        });
+        await fetchReceipts(true); // Refetch data
+    } catch (e) {
+        console.error("Error adding sample data: ", e);
+        toast({
+            variant: "destructive",
+            title: "Could not load sample data",
+            description: "There was an error initializing your account with sample receipts.",
+        });
+    }
+  }
+
+
+  async function fetchReceipts(forceRefetch = false) {
     if (!user) return;
     setIsLoadingHistory(true);
     try {
@@ -120,17 +234,22 @@ export default function Home() {
         orderBy('createdAt', 'desc')
       );
       const querySnapshot = await getDocs(q);
-      const fetchedReceipts: ReceiptWithId[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        fetchedReceipts.push({
-          ...(data as ExtractReceiptDataOutput),
-          id: doc.id,
-          firestoreId: doc.id,
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+      
+      if (querySnapshot.empty && !forceRefetch) {
+        await addSampleData();
+      } else {
+        const fetchedReceipts: ReceiptWithId[] = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          fetchedReceipts.push({
+            ...(data as ExtractReceiptDataOutput),
+            id: doc.id,
+            firestoreId: doc.id,
+            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+          });
         });
-      });
-      setReceipts(fetchedReceipts);
+        setReceipts(fetchedReceipts);
+      }
 
     } catch (e) {
       console.error('Error fetching receipts:', e);
@@ -343,4 +462,5 @@ export default function Home() {
       </footer>
     </div>
   );
-}
+
+    
