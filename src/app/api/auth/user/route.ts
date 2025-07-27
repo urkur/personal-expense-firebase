@@ -20,12 +20,16 @@ export async function POST(req: NextRequest) {
 
     if (!userDoc.exists) {
       // User is new, create a document for them and populate with sample data
-      await userRef.set({
+      const batch = adminDb.batch();
+      
+      batch.set(userRef, {
         email,
         createdAt: Timestamp.now(),
       });
       
-      await addSampleData(uid);
+      await addSampleData(uid, batch);
+      await batch.commit();
+      console.log("Sample data added for new user:", uid);
     }
     
     return new NextResponse(JSON.stringify({ status: 'success' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -36,8 +40,7 @@ export async function POST(req: NextRequest) {
 }
 
 
-async function addSampleData(userId: string) {
-    const batch = adminDb.batch();
+async function addSampleData(userId: string, batch: admin.firestore.WriteBatch) {
     const sampleReceipts = [
       {
         date: '2025-05-10',
@@ -127,14 +130,8 @@ async function addSampleData(userId: string) {
         batch.set(docRef, {
             ...receipt,
             userId: userId,
+            // Store the date string directly, but also add a proper timestamp for sorting
             createdAt: Timestamp.fromDate(new Date(receipt.date)),
         });
     });
-
-    try {
-        await batch.commit();
-        console.log("Sample data added for new user:", userId);
-    } catch (e) {
-        console.error("Error adding sample data for new user:", e);
-    }
 }
