@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/table';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
+import { Button } from './ui/button';
+import { Wallet } from 'lucide-react';
 
 interface ReceiptDisplayProps {
   receipt: ExtractReceiptDataOutput;
@@ -32,6 +34,12 @@ export function ReceiptDisplay({ receipt }: ReceiptDisplayProps) {
     style: 'currency',
     currency: receipt.currency || 'USD',
   });
+
+  const handleAddToWallet = () => {
+    // In a real application, you would integrate with the Google Wallet API here.
+    // For this prototype, we'll just show an alert.
+    alert('This would add the receipt to Google Wallet!');
+  };
 
   return (
     <Card className="border-accent shadow-sm">
@@ -70,7 +78,7 @@ export function ReceiptDisplay({ receipt }: ReceiptDisplayProps) {
           </TableBody>
         </Table>
       </CardContent>
-      <CardFooter>
+      <CardFooter className='flex-col items-stretch gap-4'>
         <div className="flex-grow space-y-2 text-sm">
             {receipt.tax != null && (
                 <div className="flex justify-between">
@@ -84,6 +92,9 @@ export function ReceiptDisplay({ receipt }: ReceiptDisplayProps) {
                 <p>{currencyFormatter.format(receipt.total)}</p>
             </div>
         </div>
+        <Button onClick={handleAddToWallet}>
+          <Wallet className="mr-2 h-4 w-4" /> Add to Google Wallet
+        </Button>
       </CardFooter>
     </Card>
   );

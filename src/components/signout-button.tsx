@@ -14,9 +14,9 @@ export function SignOutButton() {
     };
 
     return (
-        <Button variant="ghost" size="icon" onClick={handleSignOut}>
-            <LogOut />
-            <span className="sr-only">Sign Out</span>
+        <Button variant="ghost" onClick={handleSignOut}>
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>Sign Out</span>
         </Button>
     );
 }

@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
-import { SignOutButton } from '@/components/signout-button';
+import { UserNav } from '@/components/user-nav';
 
 type ReceiptWithId = ExtractReceiptDataOutput & { id: string };
 
@@ -100,7 +100,7 @@ export default function Home() {
                       <span className='ml-2'>Chat with AI</span>
                   </Link>
               </Button>
-              <SignOutButton />
+              <UserNav user={user} />
             </div>
         </div>
       </header>
