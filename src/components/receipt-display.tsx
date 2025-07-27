@@ -17,13 +17,19 @@ import {
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { Wallet } from 'lucide-react';
+import { Loader2, Wallet } from 'lucide-react';
+import { generateWalletPass } from '@/ai/flows/generate-wallet-pass';
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 interface ReceiptDisplayProps {
   receipt: ExtractReceiptDataOutput;
 }
 
 export function ReceiptDisplay({ receipt }: ReceiptDisplayProps) {
+  const [isAddingToWallet, setIsAddingToWallet] = useState(false);
+  const { toast } = useToast();
+
   const formattedDate = new Date(receipt.date).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -35,11 +41,34 @@ export function ReceiptDisplay({ receipt }: ReceiptDisplayProps) {
     currency: receipt.currency || 'USD',
   });
 
-  const handleAddToWallet = () => {
-    // In a real application, you would integrate with the Google Wallet API here.
-    // For this prototype, we'll just show an alert.
-    alert('This would add the receipt to Google Wallet!');
+  const handleAddToWallet = async () => {
+    setIsAddingToWallet(true);
+    try {
+      // In a real application, the returned passUrl would be a signed JWT
+      // that you would redirect the user to.
+      const { passUrl } = await generateWalletPass(receipt);
+      
+      // For this prototype, we'll show a toast and log the placeholder.
+      console.log('Wallet Pass URL:', passUrl);
+      toast({
+        title: 'Add to Wallet (Prototype)',
+        description: 'In a real app, you would be redirected to add this to your Google Wallet.',
+      });
+      // In a production app, you might do:
+      // window.open(passUrl, '_blank');
+
+    } catch (error) {
+      console.error('Error generating wallet pass:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Could not create a Google Wallet pass.',
+      });
+    } finally {
+      setIsAddingToWallet(false);
+    }
   };
+
 
   return (
     <Card className="border-accent shadow-sm">
@@ -92,8 +121,13 @@ export function ReceiptDisplay({ receipt }: ReceiptDisplayProps) {
                 <p>{currencyFormatter.format(receipt.total)}</p>
             </div>
         </div>
-        <Button onClick={handleAddToWallet}>
-          <Wallet className="mr-2 h-4 w-4" /> Add to Google Wallet
+        <Button onClick={handleAddToWallet} disabled={isAddingToWallet}>
+          {isAddingToWallet ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Wallet className="mr-2 h-4 w-4" />
+          )}
+          {isAddingToWallet ? 'Generating...' : 'Add to Google Wallet'}
         </Button>
       </CardFooter>
     </Card>

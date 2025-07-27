@@ -5,3 +5,4 @@ import '@/ai/flows/extract-receipt-data.ts';
 import '@/ai/flows/generate-shopping-list.ts';
 import '@/ai/flows/understand-spending-habits.ts';
 import '@/ai/flows/suggest-savings.ts';
+import '@/ai/flows/generate-wallet-pass.ts';
