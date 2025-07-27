@@ -26,7 +26,7 @@ export type GenerateWalletPassOutput = z.infer<
 
 // In a real application, these would be managed securely, likely in environment variables.
 const ISSUER_ID = process.env.GOOGLE_WALLET_ISSUER_ID || '3388000000022956210';
-const PASS_CLASS_SUFFIX = 'receipt'; // The suffix you defined in the Google Wallet Console
+const PASS_CLASS_SUFFIX = 'Offer'; // The suffix you defined in the Google Wallet Console
 
 function createReceiptObject(receipt: GenerateWalletPassInput, objectId: string) {
   const lineItems = receipt.items.map(item => ({
@@ -37,6 +37,8 @@ function createReceiptObject(receipt: GenerateWalletPassInput, objectId: string)
     },
     quantity: item.quantity || 1,
   }));
+  
+  const validDate = new Date(receipt.date).toISOString();
 
   const passObject = {
     id: `${ISSUER_ID}.${objectId}`,
@@ -62,7 +64,7 @@ function createReceiptObject(receipt: GenerateWalletPassInput, objectId: string)
       {
         id: 'date',
         header: 'Date',
-        body: new Date(receipt.date).toLocaleDateString(),
+        body: new Date(validDate).toLocaleDateString(),
       }
     ],
     lineItems: lineItems,
@@ -108,18 +110,17 @@ const generateWalletPassFlow = ai.defineFlow(
 
     // In a real app, you would sign this 'passObject' into a JWT.
     // This is a placeholder for the signed JWT.
-    const signedJwt = Buffer.from(JSON.stringify(passObject)).toString('base64');
+    const signedJwt = Buffer.from(JSON.stringify(passObject)).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 
 
     // The user would be redirected to this URL to save the pass.
-    const passUrl = `https://pay.google.com/gp/v/save/${signedJwt}`;
+    const passUrl = `https://pay.google.com/gp/v/object/${signedJwt}`;
     
     console.log("Generated Google Wallet Pass URL:", passUrl);
     console.log("Pass Object:", JSON.stringify(passObject, null, 2));
 
 
     // For the prototype, we can't generate a real, savable pass without proper credentials.
-    // We'll return a placeholder object.
     // To make this work, you would need to:
     // 1. Go to the Google Wallet Business Console (https://wallet.google.com/business/console)
     // 2. Create an "Offer" class for your receipts.

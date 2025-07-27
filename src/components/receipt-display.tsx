@@ -44,18 +44,17 @@ export function ReceiptDisplay({ receipt }: ReceiptDisplayProps) {
   const handleAddToWallet = async () => {
     setIsAddingToWallet(true);
     try {
-      // In a real application, the returned passUrl would be a signed JWT
-      // that you would redirect the user to.
       const { passUrl } = await generateWalletPass(receipt);
       
-      // For this prototype, we'll show a toast and log the placeholder.
-      console.log('Wallet Pass URL:', passUrl);
+      console.log('Generated Google Wallet URL:', passUrl);
+
       toast({
         title: 'Add to Wallet (Prototype)',
-        description: 'In a real app, you would be redirected to add this to your Google Wallet.',
+        description: 'Check the console for the generated URL. In a real app with proper signing, this would open Google Wallet.',
+        duration: 9000
       });
-      // In a production app, you might do:
-      window.open(passUrl, '_blank');
+      // In a production app with a real signed JWT, this would redirect:
+      // window.open(passUrl, '_blank');
 
     } catch (error) {
       console.error('Error generating wallet pass:', error);
