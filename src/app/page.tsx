@@ -125,13 +125,12 @@ export default function Home() {
       const fetchedReceipts: ReceiptWithId[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        const receiptData = {
-          ...data,
-          date: data.date, 
+        fetchedReceipts.push({
+          ...(data as ExtractReceiptDataOutput),
+          id: doc.id,
+          firestoreId: doc.id,
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-        } as ExtractReceiptDataOutput & { createdAt: Date };
-
-        fetchedReceipts.push({ ...receiptData, id: doc.id, firestoreId: doc.id });
+        });
       });
       setReceipts(fetchedReceipts);
     } catch (e) {
@@ -281,7 +280,7 @@ export default function Home() {
         const receiptsCol = collection(db, 'receipts');
 
         sampleReceipts.forEach(receipt => {
-            const docRef = doc(receiptsCol); // Create a new document reference with an auto-generated ID
+            const docRef = doc(receiptsCol);
             const newDoc = {
                 ...receipt,
                 userId: user.uid,
@@ -295,7 +294,6 @@ export default function Home() {
             title: 'Sample Data Added',
             description: 'Your dashboard is now populated.',
         });
-        // Re-fetch data to update the UI
         await fetchReceipts();
     } catch (e) {
         console.error('Error adding sample data:', e);
@@ -458,5 +456,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
