@@ -7,6 +7,9 @@ import { Loader2, Send } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { type ExtractReceiptDataOutput } from '@/ai/flows/extract-receipt-data';
+import { useAuth } from '@/hooks/use-auth';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 
 interface Message {
   sender: 'user' | 'ai';
@@ -18,15 +21,38 @@ export function ChatInterface() {
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [receipts, setReceipts] = useState<ExtractReceiptDataOutput[]>([]);
+  const [isLoadingReceipts, setIsLoadingReceipts] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
-    // Load receipts from local storage
-    const storedReceipts = localStorage.getItem('receipts');
-    if (storedReceipts) {
-      setReceipts(JSON.parse(storedReceipts));
+    async function fetchReceipts() {
+      if (!user) return;
+      setIsLoadingReceipts(true);
+      try {
+        const q = query(
+          collection(db, 'receipts'),
+          where('userId', '==', user.uid),
+          orderBy('createdAt', 'desc')
+        );
+        const querySnapshot = await getDocs(q);
+        const fetchedReceipts: ExtractReceiptDataOutput[] = [];
+        querySnapshot.forEach((doc) => {
+          fetchedReceipts.push(doc.data() as ExtractReceiptDataOutput);
+        });
+        setReceipts(fetchedReceipts);
+      } catch (e) {
+        console.error('Error fetching receipts for chat:', e);
+        // Optionally, set an error message to display to the user
+      } finally {
+        setIsLoadingReceipts(false);
+      }
     }
-  }, []);
+
+    if (user) {
+      fetchReceipts();
+    }
+  }, [user]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -34,7 +60,7 @@ export function ChatInterface() {
 
 
   async function handleSend() {
-    if (!input.trim() || isSending) return;
+    if (!input.trim() || isSending || isLoadingReceipts) return;
 
     const userMessage: Message = { sender: 'user', text: input };
     setMessages((prev) => [...prev, userMessage]);
@@ -66,6 +92,12 @@ export function ChatInterface() {
         <CardTitle>Ask about your spending</CardTitle>
       </CardHeader>
       <CardContent className="flex-grow overflow-y-auto p-4 space-y-4">
+        {messages.length === 0 && (
+            <div className="text-center text-muted-foreground">
+                <p>Ask me anything about your spending habits!</p>
+                <p className="text-xs">e.g., "How much did I spend on groceries last month?"</p>
+            </div>
+        )}
         {messages.map((message, index) => (
           <div
             key={index}
@@ -101,11 +133,11 @@ export function ChatInterface() {
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your message..."
+            placeholder={isLoadingReceipts ? "Loading your receipts..." : "Type your message..."}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            disabled={isSending}
+            disabled={isSending || isLoadingReceipts}
           />
-          <Button onClick={handleSend} disabled={isSending}>
+          <Button onClick={handleSend} disabled={isSending || isLoadingReceipts}>
             {isSending ? (
               <Loader2 className="animate-spin" />
             ) : (
