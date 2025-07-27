@@ -36,12 +36,14 @@ const prompt = ai.definePrompt({
 
 The current date is {{{currentDate}}}. Please use this to answer any time-relative questions (e.g., "last month", "this week").
 
-Here is their receipt data:
+Here is all the receipt data you have access to:
 \`\`\`json
 {{{json receipts}}}
 \`\`\`
 
-Based on their past spending data, provide a concise and helpful insight. Answer the user's question. If the user asks for something that is not in the data, or if there is no data for the requested period, say that you do not have that information or that the spending was zero.
+Based ONLY on the provided receipt data, provide a concise and helpful insight to answer the user's question. 
+It is very important that you do not make up information. 
+If you do not have any data for the requested period, you MUST clearly state that you do not have the information or that the spending for that period was zero. Do not provide data from other periods.
 `,
 });
 
