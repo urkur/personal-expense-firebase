@@ -16,8 +16,10 @@ import {
 } from '@/components/ui/accordion';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
-import { AlertTriangle, FileText } from 'lucide-react';
+import { AlertTriangle, FileText, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 type ReceiptWithId = ExtractReceiptDataOutput & { id: string };
 
@@ -40,6 +42,9 @@ export default function Home() {
         id: new Date().toISOString(),
       };
       setReceipts((prevReceipts) => [newReceipt, ...prevReceipts]);
+      // Store receipts in local storage to be accessible by the chat page
+      localStorage.setItem('receipts', JSON.stringify([newReceipt, ...receipts]));
+
       toast({
         title: "Success!",
         description: `Receipt from ${result.storeName} processed.`,
@@ -61,11 +66,19 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="p-4 border-b bg-card">
-        <div className="container mx-auto flex items-center gap-4">
-          <Logo />
-          <h1 className="text-2xl font-bold font-headline text-foreground">
-            Raseed Lite
-          </h1>
+        <div className="container mx-auto flex items-center justify-between">
+            <div className='flex items-center gap-4'>
+                <Logo />
+                <h1 className="text-2xl font-bold font-headline text-foreground">
+                    Raseed Lite
+                </h1>
+            </div>
+            <Button asChild variant="outline">
+                <Link href="/chat">
+                    <MessageSquare />
+                    <span className='ml-2'>Chat with AI</span>
+                </Link>
+            </Button>
         </div>
       </header>
 

@@ -10,10 +10,11 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { ExtractReceiptDataOutput } from './extract-receipt-data';
 
 const UnderstandSpendingHabitsInputSchema = z.object({
-  userId: z.string().describe('The ID of the user asking the question.'),
   question: z.string().describe('The question about spending habits.'),
+  receipts: z.array(z.any()).describe('A list of receipts to analyze.'),
 });
 export type UnderstandSpendingHabitsInput = z.infer<typeof UnderstandSpendingHabitsInputSchema>;
 
@@ -30,7 +31,15 @@ const prompt = ai.definePrompt({
   name: 'understandSpendingHabitsPrompt',
   input: {schema: UnderstandSpendingHabitsInputSchema},
   output: {schema: UnderstandSpendingHabitsOutputSchema},
-  prompt: `You are a personal finance advisor. A user with ID {{{userId}}} has asked the following question about their spending habits: {{{question}}}. Based on their past spending data, provide a concise and helpful insight.`,
+  prompt: `You are a personal finance advisor. A user has asked the following question about their spending habits: {{{question}}}. 
+
+Here is their receipt data:
+\`\`\`json
+{{{json receipts}}}
+\`\`\`
+
+Based on their past spending data, provide a concise and helpful insight. Answer the user's question. If the user asks for something that is not in the data, say that you do not have that information.
+`,
 });
 
 const understandSpendingHabitsFlow = ai.defineFlow(
