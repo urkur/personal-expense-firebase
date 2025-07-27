@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/accordion';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertTriangle, FileText, MessageSquare, Loader2, Camera, Upload, Video, VideoOff } from 'lucide-react';
+import { AlertTriangle, FileText, MessageSquare, Loader2, Camera, Upload, Video, VideoOff, PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -25,7 +25,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { UserNav } from '@/components/user-nav';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, orderBy, Timestamp, writeBatch } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dashboard } from '@/components/dashboard';
 
@@ -35,6 +35,7 @@ export default function Home() {
   const [receipts, setReceipts] = useState<ReceiptWithId[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [isAddingSamples, setIsAddingSamples] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { user, loading } = useAuth();
@@ -124,12 +125,9 @@ export default function Home() {
       const fetchedReceipts: ReceiptWithId[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        // Firestore timestamps need to be converted to JS Dates.
-        // The 'date' field from the receipt is a string 'YYYY-MM-DD'.
         const receiptData = {
           ...data,
           date: data.date, 
-          // Make sure createdAt is a Date object for calculations
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
         } as ExtractReceiptDataOutput & { createdAt: Date };
 
@@ -169,8 +167,6 @@ export default function Home() {
         createdAt: creationTimestamp.toDate(),
       };
 
-      // Add new receipt to the top of the list to instantly update UI
-      // and re-render the dashboard with fresh data.
       setReceipts(prevReceipts => [newReceipt, ...prevReceipts]);
 
       toast({
@@ -197,7 +193,6 @@ export default function Home() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     
-    // Set canvas dimensions to match video
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
@@ -209,7 +204,101 @@ export default function Home() {
       stopCamera();
     }
   }
+  
+  async function addSampleData() {
+    if (!user) return;
+    setIsAddingSamples(true);
+    
+    const now = new Date();
+    const getPastDate = (months: number) => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - months);
+        return d.toISOString().split('T')[0];
+    }
 
+    const sampleReceipts = [
+      {
+        storeName: 'SuperMart',
+        date: getPastDate(0), // This month
+        total: 75.50,
+        tax: 5.50,
+        currency: 'USD',
+        items: [
+          { name: 'Milk', amount: 3.50, quantity: 1, category: 'grocery' },
+          { name: 'Bread', amount: 2.50, quantity: 1, category: 'grocery' },
+          { name: 'Chicken', amount: 15.00, quantity: 1, category: 'grocery' },
+          { name: 'Shampoo', amount: 8.00, quantity: 1, category: 'home' },
+          { name: 'Socks', amount: 12.00, quantity: 2, category: 'clothing' },
+          { name: 'Pizza', amount: 20.00, quantity: 1, category: 'kitchen' },
+          { name: 'HDMI Cable', amount: 14.50, quantity: 1, category: 'electronics' },
+        ],
+      },
+      {
+        storeName: 'Tech Central',
+        date: getPastDate(1), // Last month
+        total: 299.99,
+        tax: 20.00,
+        currency: 'USD',
+        items: [
+          { name: 'Headphones', amount: 279.99, quantity: 1, category: 'electronics' },
+        ],
+      },
+      {
+        storeName: 'Best Eats',
+        date: getPastDate(1), // Last month
+        total: 45.20,
+        tax: 4.20,
+        currency: 'USD',
+        items: [
+          { name: 'Burger', amount: 15.00, quantity: 2, category: 'kitchen' },
+          { name: 'Fries', amount: 5.00, quantity: 2, category: 'kitchen' },
+          { name: 'Soda', amount: 2.60, quantity: 2, category: 'kitchen' },
+        ],
+      },
+      {
+        storeName: 'SuperMart',
+        date: getPastDate(2), // Two months ago
+        total: 55.75,
+        tax: 4.75,
+        currency: 'USD',
+        items: [
+          { name: 'Cereal', amount: 5.00, quantity: 1, category: 'grocery' },
+          { name: 'Yogurt', amount: 6.00, quantity: 1, category: 'grocery' },
+          { name: 'Dumbbells', amount: 40.00, quantity: 1, category: 'sports' },
+        ],
+      },
+    ];
+
+    try {
+        const batch = writeBatch(db);
+        sampleReceipts.forEach(receipt => {
+            const docRef = collection(db, 'receipts');
+            const newDoc = {
+                ...receipt,
+                userId: user.uid,
+                createdAt: Timestamp.fromDate(new Date(receipt.date)),
+            };
+            batch.set(addDoc(docRef, {})._path.parent.doc(), newDoc);
+        });
+        await batch.commit();
+
+        toast({
+            title: 'Sample Data Added',
+            description: 'Your dashboard is now populated.',
+        });
+        // Re-fetch data to update the UI
+        await fetchReceipts();
+    } catch (e) {
+        console.error('Error adding sample data:', e);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Could not add sample data.',
+        });
+    } finally {
+        setIsAddingSamples(false);
+    }
+  }
 
   if (loading || !user) {
     return (
@@ -339,7 +428,15 @@ export default function Home() {
               <div className="text-center text-muted-foreground py-12">
                 <FileText size={48} className="mx-auto mb-4" />
                 <h3 className="text-lg font-semibold">No receipts yet</h3>
-                <p>Upload or capture your first receipt to get started.</p>
+                <p>Upload your first receipt or load sample data to see your history.</p>
+                 <Button onClick={addSampleData} disabled={isAddingSamples} className="mt-4">
+                  {isAddingSamples ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                  )}
+                  {isAddingSamples ? 'Adding...' : 'Load Sample Data'}
+                </Button>
               </div>
             )}
           </div>
@@ -352,3 +449,4 @@ export default function Home() {
     </div>
   );
 }
+
