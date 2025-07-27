@@ -27,6 +27,7 @@ import { UserNav } from '@/components/user-nav';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dashboard } from '@/components/dashboard';
 
 type ReceiptWithId = ExtractReceiptDataOutput & { id: string, firestoreId?: string, createdAt: any };
 
@@ -123,9 +124,12 @@ export default function Home() {
       const fetchedReceipts: ReceiptWithId[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
+        // Firestore timestamps need to be converted to JS Dates.
+        // The 'date' field from the receipt is a string 'YYYY-MM-DD'.
         const receiptData = {
           ...data,
           date: data.date, 
+          // Make sure createdAt is a Date object for calculations
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
         } as ExtractReceiptDataOutput & { createdAt: Date };
 
@@ -165,8 +169,9 @@ export default function Home() {
         createdAt: creationTimestamp.toDate(),
       };
 
-      const updatedReceipts = [newReceipt, ...receipts];
-      setReceipts(updatedReceipts);
+      // Add new receipt to the top of the list to instantly update UI
+      // and re-render the dashboard with fresh data.
+      setReceipts(prevReceipts => [newReceipt, ...prevReceipts]);
 
       toast({
         title: "Success!",
@@ -238,6 +243,9 @@ export default function Home() {
 
       <main className="flex-grow container mx-auto p-4 md:p-8">
         <div className="grid gap-8 max-w-4xl mx-auto">
+
+         <Dashboard receipts={receipts} isLoading={isLoadingHistory} />
+
           <Card className="shadow-lg">
              <CardHeader>
                 <CardTitle className="text-xl font-semibold text-center">Process a Receipt</CardTitle>
@@ -309,7 +317,7 @@ export default function Home() {
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
             ) : receipts.length > 0 ? (
-              <Accordion type="single" collapsible defaultValue={receipts[0]?.id}>
+              <Accordion type="single" collapsible>
                 {receipts.map((receipt) => (
                   <AccordionItem value={receipt.id} key={receipt.id}>
                     <AccordionTrigger>
