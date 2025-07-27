@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   extractReceiptData,
   type ExtractReceiptDataOutput,
@@ -16,8 +16,8 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Card, CardContent } from '@/components/ui/card';
-import { AlertTriangle, FileText, MessageSquare, Loader2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertTriangle, FileText, MessageSquare, Loader2, Camera, Upload, Video, VideoOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -26,6 +26,7 @@ import { useRouter } from 'next/navigation';
 import { UserNav } from '@/components/user-nav';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type ReceiptWithId = ExtractReceiptDataOutput & { id: string, firestoreId?: string, createdAt: any };
 
@@ -38,6 +39,11 @@ export default function Home() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
@@ -48,7 +54,61 @@ export default function Home() {
     if (user) {
       fetchReceipts();
     }
+
+    // Cleanup camera stream on component unmount
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
   }, [user]);
+
+  async function getCameraPermission() {
+    if (typeof navigator.mediaDevices === 'undefined' || !navigator.mediaDevices.getUserMedia) {
+        toast({
+            variant: 'destructive',
+            title: 'Camera Not Supported',
+            description: 'Your browser does not support camera access.',
+        });
+        setHasCameraPermission(false);
+        return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        streamRef.current = stream;
+      }
+      setHasCameraPermission(true);
+    } catch (err) {
+      console.error('Error accessing camera:', err);
+      setHasCameraPermission(false);
+      toast({
+        variant: 'destructive',
+        title: 'Camera Access Denied',
+        description: 'Please enable camera permissions in your browser settings to use this feature.',
+      });
+    }
+  }
+
+  function stopCamera() {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      setHasCameraPermission(null);
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+    }
+  }
+
+  const handleTabChange = (value: string) => {
+    if (value === 'camera') {
+      getCameraPermission();
+    } else {
+      stopCamera();
+    }
+  };
+  
 
   async function fetchReceipts() {
     if (!user) return;
@@ -63,7 +123,6 @@ export default function Home() {
       const fetchedReceipts: ReceiptWithId[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        // Convert Firestore Timestamp to Date object if it exists
         const receiptData = {
           ...data,
           date: data.date, 
@@ -126,6 +185,26 @@ export default function Home() {
       setIsProcessing(false);
     }
   }
+  
+  function handleCapture() {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    
+    // Set canvas dimensions to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const context = canvas.getContext('2d');
+    if (context) {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg');
+      processReceipt(dataUrl);
+      stopCamera();
+    }
+  }
+
 
   if (loading || !user) {
     return (
@@ -160,15 +239,57 @@ export default function Home() {
       <main className="flex-grow container mx-auto p-4 md:p-8">
         <div className="grid gap-8 max-w-4xl mx-auto">
           <Card className="shadow-lg">
+             <CardHeader>
+                <CardTitle className="text-xl font-semibold text-center">Process a Receipt</CardTitle>
+             </CardHeader>
             <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-2">Upload a Receipt</h2>
-              <p className="text-muted-foreground mb-4">
-                Upload an image of your receipt to automatically extract the details.
-              </p>
-              <ReceiptUploader
-                onUpload={processReceipt}
-                isProcessing={isProcessing}
-              />
+                <Tabs defaultValue="upload" className="w-full" onValueChange={handleTabChange}>
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="upload"><Upload className="mr-2"/>Upload</TabsTrigger>
+                        <TabsTrigger value="camera"><Camera className="mr-2"/>Camera</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="upload" className="mt-4">
+                         <p className="text-muted-foreground mb-4 text-center">
+                            Upload an image of your receipt to automatically extract the details.
+                        </p>
+                        <ReceiptUploader
+                            onUpload={processReceipt}
+                            isProcessing={isProcessing}
+                        />
+                    </TabsContent>
+                    <TabsContent value="camera" className="mt-4">
+                        <div className='flex flex-col items-center gap-4'>
+                            <div className='w-full relative bg-muted rounded-md aspect-video flex items-center justify-center'>
+                                <video ref={videoRef} className="w-full h-full object-cover rounded-md" autoPlay muted playsInline />
+                                <canvas ref={canvasRef} className="hidden" />
+                                {hasCameraPermission === false && (
+                                     <div className='text-center text-muted-foreground p-4'>
+                                        <VideoOff size={48} className="mx-auto mb-2" />
+                                        <p>Camera access is required.</p>
+                                        <Button onClick={getCameraPermission} variant="link">Try Again</Button>
+                                    </div>
+                                )}
+                                {hasCameraPermission === null && (
+                                    <div className='text-center text-muted-foreground p-4'>
+                                        <Video size={48} className="mx-auto mb-2" />
+                                        <p>Requesting camera permission...</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <Button onClick={handleCapture} disabled={isProcessing || !hasCameraPermission} className="w-full" size="lg">
+                                {isProcessing ? (
+                                <Loader2 className="animate-spin" />
+                                ) : (
+                                <Camera />
+                                )}
+                                <span className="ml-2">
+                                {isProcessing ? 'Processing...' : 'Capture Receipt'}
+                                </span>
+                            </Button>
+                        </div>
+                    </TabsContent>
+                </Tabs>
             </CardContent>
           </Card>
 
@@ -210,7 +331,7 @@ export default function Home() {
               <div className="text-center text-muted-foreground py-12">
                 <FileText size={48} className="mx-auto mb-4" />
                 <h3 className="text-lg font-semibold">No receipts yet</h3>
-                <p>Upload your first receipt to get started.</p>
+                <p>Upload or capture your first receipt to get started.</p>
               </div>
             )}
           </div>
