@@ -55,7 +55,7 @@ export function ReceiptDisplay({ receipt }: ReceiptDisplayProps) {
         description: 'In a real app, you would be redirected to add this to your Google Wallet.',
       });
       // In a production app, you might do:
-      // window.open(passUrl, '_blank');
+      window.open(passUrl, '_blank');
 
     } catch (error) {
       console.error('Error generating wallet pass:', error);

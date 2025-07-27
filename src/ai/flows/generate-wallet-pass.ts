@@ -25,7 +25,7 @@ export type GenerateWalletPassOutput = z.infer<
 >;
 
 // In a real application, these would be managed securely, likely in environment variables.
-const ISSUER_ID = process.env.GOOGLE_WALLET_ISSUER_ID || 'YOUR_ISSUER_ID';
+const ISSUER_ID = process.env.GOOGLE_WALLET_ISSUER_ID || '3388000000022956210';
 const PASS_CLASS_SUFFIX = 'receipt'; // The suffix you defined in the Google Wallet Console
 
 function createReceiptObject(receipt: GenerateWalletPassInput, objectId: string) {
@@ -107,7 +107,9 @@ const generateWalletPassFlow = ai.defineFlow(
     const passObject = createReceiptObject(receipt, objectId);
 
     // In a real app, you would sign this 'passObject' into a JWT.
-    const signedJwt = `DUMMY_SIGNED_JWT_FOR_${JSON.stringify(passObject)}`;
+    // This is a placeholder for the signed JWT.
+    const signedJwt = Buffer.from(JSON.stringify(passObject)).toString('base64');
+
 
     // The user would be redirected to this URL to save the pass.
     const passUrl = `https://pay.google.com/gp/v/save/${signedJwt}`;
@@ -126,7 +128,7 @@ const generateWalletPassFlow = ai.defineFlow(
     // 5. Replace the dummy JWT creation above with real signing logic.
 
     return {
-      passUrl: '#', // Return a placeholder URL.
+      passUrl: passUrl,
     };
   }
 );
