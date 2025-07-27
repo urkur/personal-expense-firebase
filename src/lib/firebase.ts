@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
     "projectId": "raseed-lite-u6e5l",
@@ -8,10 +9,11 @@ const firebaseConfig = {
     "apiKey": "AIzaSyDMIDy2sofinIo_lqa7ji2PLwT2-_xp2K4",
     "authDomain": "raseed-lite-u6e5l.firebaseapp.com",
     "messagingSenderId": "576324904463",
-    "measurementId": ""
+    "measurementId": "G-576324904463"
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
+const db = getFirestore(app);
 
-export { app, auth };
+export { app, auth, db };

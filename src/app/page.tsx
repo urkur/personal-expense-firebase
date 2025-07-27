@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -23,12 +24,15 @@ import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { UserNav } from '@/components/user-nav';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, query, where, getDocs, orderBy, serverTimestamp } from 'firebase/firestore';
 
-type ReceiptWithId = ExtractReceiptDataOutput & { id: string };
+type ReceiptWithId = ExtractReceiptDataOutput & { id: string, firestoreId?: string };
 
 export default function Home() {
   const [receipts, setReceipts] = useState<ReceiptWithId[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { user, loading } = useAuth();
@@ -40,26 +44,67 @@ export default function Home() {
     }
   }, [user, loading, router]);
 
+  useEffect(() => {
+    if (user) {
+      fetchReceipts();
+    }
+  }, [user]);
+
+  async function fetchReceipts() {
+    if (!user) return;
+    setIsLoadingHistory(true);
+    try {
+      const q = query(
+        collection(db, 'receipts'),
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      const fetchedReceipts: ReceiptWithId[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data() as ExtractReceiptDataOutput;
+        fetchedReceipts.push({ ...data, id: doc.id, firestoreId: doc.id });
+      });
+      setReceipts(fetchedReceipts);
+      localStorage.setItem('receipts', JSON.stringify(fetchedReceipts));
+    } catch (e) {
+      console.error('Error fetching receipts:', e);
+      setError('Failed to fetch receipt history.');
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }
+
 
   async function processReceipt(photoDataUri: string) {
-    if (isProcessing) return;
+    if (isProcessing || !user) return;
 
     setIsProcessing(true);
     setError(null);
 
     try {
       const result = await extractReceiptData({ photoDataUri });
+
+      // Save to Firestore
+      const docRef = await addDoc(collection(db, "receipts"), {
+        ...result,
+        userId: user.uid,
+        createdAt: serverTimestamp(),
+      });
+
       const newReceipt: ReceiptWithId = {
         ...result,
-        id: new Date().toISOString(),
+        id: new Date().toISOString(), // Still use temp ID for immediate UI update
+        firestoreId: docRef.id,
       };
-      setReceipts((prevReceipts) => [newReceipt, ...prevReceipts]);
-      // Store receipts in local storage to be accessible by the chat page
-      localStorage.setItem('receipts', JSON.stringify([newReceipt, ...receipts]));
+
+      const updatedReceipts = [newReceipt, ...receipts];
+      setReceipts(updatedReceipts);
+      localStorage.setItem('receipts', JSON.stringify(updatedReceipts));
 
       toast({
         title: "Success!",
-        description: `Receipt from ${result.storeName} processed.`,
+        description: `Receipt from ${result.storeName} processed and saved.`,
       })
     } catch (e) {
       console.error(e);
@@ -131,7 +176,11 @@ export default function Home() {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold font-headline text-center">Receipt History</h2>
 
-            {receipts.length > 0 ? (
+            {isLoadingHistory ? (
+                <div className="flex justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+            ) : receipts.length > 0 ? (
               <Accordion type="single" collapsible defaultValue={receipts[0]?.id}>
                 {receipts.map((receipt) => (
                   <AccordionItem value={receipt.id} key={receipt.id}>
