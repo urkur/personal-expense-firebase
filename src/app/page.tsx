@@ -25,7 +25,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { UserNav } from '@/components/user-nav';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, query, where, getDocs, orderBy, Timestamp, writeBatch, doc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dashboard } from '@/components/dashboard';
 
@@ -45,10 +45,6 @@ export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Ref to track if we've already tried adding sample data for this session
-  const sampleDataCheckRef = useRef(false);
-
-
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
@@ -56,9 +52,8 @@ export default function Home() {
   }, [user, loading, router]);
 
   useEffect(() => {
-    if (user && !sampleDataCheckRef.current) {
-      fetchReceiptsAndAddSamplesIfEmpty();
-      sampleDataCheckRef.current = true;
+    if (user) {
+      fetchReceipts();
     }
 
     // Cleanup camera stream on component unmount
@@ -115,135 +110,18 @@ export default function Home() {
     }
   };
   
-  async function addSampleData() {
-    if (!user) return;
-    
-    const getPastDate = (monthsToSubtract: number): Date => {
-      const date = new Date();
-      date.setMonth(date.getMonth() - monthsToSubtract);
-      return date;
-    };
-    
-    const formatDate = (date: Date): string => {
-        return date.toISOString().split('T')[0];
-    }
-
-    const sampleReceipts = [
-      {
-        storeName: 'SuperMart',
-        date: formatDate(getPastDate(0)), // This month
-        total: 75.50,
-        tax: 5.50,
-        currency: 'USD',
-        items: [
-          { name: 'Milk', amount: 3.50, quantity: 1, category: 'grocery' },
-          { name: 'Bread', amount: 2.50, quantity: 1, category: 'grocery' },
-          { name: 'Chicken', amount: 15.00, quantity: 1, category: 'grocery' },
-          { name: 'Shampoo', amount: 8.00, quantity: 1, category: 'home' },
-          { name: 'Socks', amount: 12.00, quantity: 2, category: 'clothing' },
-          { name: 'Pizza', amount: 20.00, quantity: 1, category: 'kitchen' },
-          { name: 'HDMI Cable', amount: 14.50, quantity: 1, category: 'electronics' },
-        ],
-        createdAt: Timestamp.fromDate(getPastDate(0)),
-      },
-      {
-        storeName: 'Tech Central',
-        date: formatDate(getPastDate(1)), // Last month
-        total: 299.99,
-        tax: 20.00,
-        currency: 'USD',
-        items: [
-          { name: 'Headphones', amount: 279.99, quantity: 1, category: 'electronics' },
-        ],
-        createdAt: Timestamp.fromDate(getPastDate(1)),
-      },
-      {
-        storeName: 'Best Eats',
-        date: formatDate(getPastDate(1)), // Last month
-        total: 45.20,
-        tax: 4.20,
-        currency: 'USD',
-        items: [
-          { name: 'Burger', amount: 15.00, quantity: 2, category: 'kitchen' },
-          { name: 'Fries', amount: 5.00, quantity: 2, category: 'kitchen' },
-          { name: 'Soda', amount: 2.60, quantity: 2, category: 'kitchen' },
-        ],
-        createdAt: Timestamp.fromDate(getPastDate(1)),
-      },
-      {
-        storeName: 'SuperMart',
-        date: formatDate(getPastDate(2)), // Two months ago
-        total: 55.75,
-        tax: 4.75,
-        currency: 'USD',
-        items: [
-          { name: 'Cereal', amount: 5.00, quantity: 1, category: 'grocery' },
-          { name: 'Yogurt', amount: 6.00, quantity: 1, category: 'grocery' },
-          { name: 'Dumbbells', amount: 40.00, quantity: 1, category: 'sports' },
-        ],
-        createdAt: Timestamp.fromDate(getPastDate(2)),
-      },
-    ];
-
-    try {
-        const batch = writeBatch(db);
-        const receiptsCol = collection(db, 'receipts');
-
-        sampleReceipts.forEach(receipt => {
-            const docRef = doc(receiptsCol);
-            const newDoc = {
-                ...receipt,
-                userId: user.uid,
-            };
-            batch.set(docRef, newDoc);
-        });
-        
-        await batch.commit();
-
-        toast({
-            title: 'Welcome!',
-            description: 'We\'ve added some sample data to get you started.',
-        });
-        return true; // Indicate that data was added
-    } catch (e) {
-        console.error('Error adding sample data:', e);
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Could not add sample data.',
-        });
-        return false; // Indicate failure
-    }
-  }
-  
-  async function fetchReceiptsAndAddSamplesIfEmpty() {
+  async function fetchReceipts() {
     if (!user) return;
     setIsLoadingHistory(true);
     try {
       const q = query(
         collection(db, 'receipts'),
-        where('userId', '==', user.uid)
-      );
-      const querySnapshot = await getDocs(q);
-      
-      if (querySnapshot.empty) {
-        const added = await addSampleData();
-        if (!added) { // If adding data failed, don't try to fetch again
-          setReceipts([]);
-          setIsLoadingHistory(false);
-          return;
-        }
-      }
-
-      // Fetch again after potentially adding samples
-      const finalQuery = query(
-        collection(db, 'receipts'),
         where('userId', '==', user.uid),
         orderBy('createdAt', 'desc')
       );
-      const finalSnapshot = await getDocs(finalQuery);
+      const querySnapshot = await getDocs(q);
       const fetchedReceipts: ReceiptWithId[] = [];
-      finalSnapshot.forEach((doc) => {
+      querySnapshot.forEach((doc) => {
         const data = doc.data();
         fetchedReceipts.push({
           ...(data as ExtractReceiptDataOutput),
