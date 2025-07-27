@@ -242,7 +242,7 @@ export default function Home() {
              <CardHeader>
                 <CardTitle className="text-xl font-semibold text-center">Process a Receipt</CardTitle>
              </CardHeader>
-            <CardContent className="p-6">
+            <CardContent>
                 <Tabs defaultValue="upload" className="w-full" onValueChange={handleTabChange}>
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="upload"><Upload className="mr-2"/>Upload</TabsTrigger>

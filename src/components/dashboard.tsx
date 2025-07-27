@@ -196,4 +196,3 @@ export function Dashboard({ receipts, isLoading }: DashboardProps) {
     </div>
   );
 }
-
