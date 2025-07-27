@@ -209,17 +209,20 @@ export default function Home() {
     if (!user) return;
     setIsAddingSamples(true);
     
-    const getPastDate = (months: number) => {
-        const d = new Date();
-        d.setMonth(d.getMonth() - months);
-        // To ensure the date is recognized correctly by Firestore, create a Timestamp
-        return Timestamp.fromDate(d);
+    const getPastDate = (monthsToSubtract: number): Date => {
+      const date = new Date();
+      date.setMonth(date.getMonth() - monthsToSubtract);
+      return date;
+    };
+    
+    const formatDate = (date: Date): string => {
+        return date.toISOString().split('T')[0];
     }
 
     const sampleReceipts = [
       {
         storeName: 'SuperMart',
-        date: getPastDate(0).toDate().toISOString().split('T')[0], // This month
+        date: formatDate(getPastDate(0)), // This month
         total: 75.50,
         tax: 5.50,
         currency: 'USD',
@@ -232,22 +235,22 @@ export default function Home() {
           { name: 'Pizza', amount: 20.00, quantity: 1, category: 'kitchen' },
           { name: 'HDMI Cable', amount: 14.50, quantity: 1, category: 'electronics' },
         ],
-        createdAt: getPastDate(0),
+        createdAt: Timestamp.fromDate(getPastDate(0)),
       },
       {
         storeName: 'Tech Central',
-        date: getPastDate(1).toDate().toISOString().split('T')[0], // Last month
+        date: formatDate(getPastDate(1)), // Last month
         total: 299.99,
         tax: 20.00,
         currency: 'USD',
         items: [
           { name: 'Headphones', amount: 279.99, quantity: 1, category: 'electronics' },
         ],
-        createdAt: getPastDate(1),
+        createdAt: Timestamp.fromDate(getPastDate(1)),
       },
       {
         storeName: 'Best Eats',
-        date: getPastDate(1).toDate().toISOString().split('T')[0], // Last month
+        date: formatDate(getPastDate(1)), // Last month
         total: 45.20,
         tax: 4.20,
         currency: 'USD',
@@ -256,11 +259,11 @@ export default function Home() {
           { name: 'Fries', amount: 5.00, quantity: 2, category: 'kitchen' },
           { name: 'Soda', amount: 2.60, quantity: 2, category: 'kitchen' },
         ],
-        createdAt: getPastDate(1),
+        createdAt: Timestamp.fromDate(getPastDate(1)),
       },
       {
         storeName: 'SuperMart',
-        date: getPastDate(2).toDate().toISOString().split('T')[0], // Two months ago
+        date: formatDate(getPastDate(2)), // Two months ago
         total: 55.75,
         tax: 4.75,
         currency: 'USD',
@@ -269,7 +272,7 @@ export default function Home() {
           { name: 'Yogurt', amount: 6.00, quantity: 1, category: 'grocery' },
           { name: 'Dumbbells', amount: 40.00, quantity: 1, category: 'sports' },
         ],
-        createdAt: getPastDate(2),
+        createdAt: Timestamp.fromDate(getPastDate(2)),
       },
     ];
 
@@ -455,3 +458,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
