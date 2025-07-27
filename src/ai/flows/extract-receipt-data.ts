@@ -26,12 +26,15 @@ const ExtractReceiptDataOutputSchema = z.object({
       name: z.string().describe('The name of the item.'),
       amount: z.number().describe('The amount of the item.'),
       quantity: z.number().optional().describe('The quantity of the item.'),
-      category: z.string().optional().describe('The category of the item.'),
+      category: z.string().optional().describe('The category of the item (e.g., kitchen, grocery, sports, home, electronics, clothing).'),
     })
   ).describe('The items on the receipt.'),
   date: z.string().describe('The date of the receipt.'),
   storeName: z.string().describe('The name of the store.'),
   total: z.number().describe('The total amount of the receipt.'),
+  tax: z.number().optional().describe('The total tax amount of the receipt.'),
+  currency: z.string().optional().describe('The currency of the receipt (e.g., USD, EUR).'),
+  language: z.string().optional().describe('The language of the receipt (e.g., en, es).'),
 });
 export type ExtractReceiptDataOutput = z.infer<typeof ExtractReceiptDataOutputSchema>;
 
@@ -45,7 +48,9 @@ const prompt = ai.definePrompt({
   output: {schema: ExtractReceiptDataOutputSchema},
   prompt: `You are an expert AI assistant specializing in extracting data from receipts.
 
-You will use this information to extract the items, amounts, date, store name, and total from the receipt.
+You will use this information to extract the items, amounts, date, store name, total, tax, currency, and language from the receipt.
+
+For each item, categorize it into one of the following: "kitchen", "grocery", "sports", "home", "electronics", "clothing", or other relevant categories.
 
 Make sure to only extract valid data. If you are unsure, leave the field blank.
 

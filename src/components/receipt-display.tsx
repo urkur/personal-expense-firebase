@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from './ui/badge';
+import { Separator } from './ui/separator';
 
 interface ReceiptDisplayProps {
   receipt: ExtractReceiptDataOutput;
@@ -29,7 +30,7 @@ export function ReceiptDisplay({ receipt }: ReceiptDisplayProps) {
 
   const currencyFormatter = new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'USD', // Assuming USD, could be made dynamic
+    currency: receipt.currency || 'USD',
   });
 
   return (
@@ -69,10 +70,19 @@ export function ReceiptDisplay({ receipt }: ReceiptDisplayProps) {
           </TableBody>
         </Table>
       </CardContent>
-      <CardFooter className="justify-end">
-        <div className="flex flex-col items-end">
-            <p className="text-muted-foreground">Total</p>
-            <p className="text-2xl font-bold">{currencyFormatter.format(receipt.total)}</p>
+      <CardFooter>
+        <div className="flex-grow space-y-2 text-sm">
+            {receipt.tax && (
+                <div className="flex justify-between">
+                    <p className="text-muted-foreground">Tax</p>
+                    <p>{currencyFormatter.format(receipt.tax)}</p>
+                </div>
+            )}
+            <Separator />
+            <div className="flex justify-between font-bold text-lg">
+                <p>Total</p>
+                <p>{currencyFormatter.format(receipt.total)}</p>
+            </div>
         </div>
       </CardFooter>
     </Card>
