@@ -4,7 +4,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import type { ExtractReceiptDataOutput } from '@/ai/flows/extract-receipt-data';
 import { suggestSavings } from '@/ai/flows/suggest-savings';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   ChartContainer,
   ChartTooltip,
