@@ -73,7 +73,6 @@ export default function Home() {
         fetchedReceipts.push({ ...receiptData, id: doc.id, firestoreId: doc.id });
       });
       setReceipts(fetchedReceipts);
-      localStorage.setItem('receipts', JSON.stringify(fetchedReceipts));
     } catch (e) {
       console.error('Error fetching receipts:', e);
       setError('Failed to fetch receipt history.');
@@ -91,25 +90,24 @@ export default function Home() {
 
     try {
       const result = await extractReceiptData({ photoDataUri });
-      const creationDate = new Date();
+      const creationTimestamp = Timestamp.now();
 
       // Save to Firestore
       const docRef = await addDoc(collection(db, "receipts"), {
         ...result,
         userId: user.uid,
-        createdAt: Timestamp.fromDate(creationDate),
+        createdAt: creationTimestamp,
       });
 
       const newReceipt: ReceiptWithId = {
         ...result,
-        id: creationDate.toISOString(), // Still use temp ID for immediate UI update
+        id: docRef.id,
         firestoreId: docRef.id,
-        createdAt: creationDate,
+        createdAt: creationTimestamp.toDate(),
       };
 
       const updatedReceipts = [newReceipt, ...receipts];
       setReceipts(updatedReceipts);
-      localStorage.setItem('receipts', JSON.stringify(updatedReceipts));
 
       toast({
         title: "Success!",
