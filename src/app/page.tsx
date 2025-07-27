@@ -221,7 +221,7 @@ export default function Home() {
                 </h1>
             </div>
             <div className="flex items-center gap-2">
-              <Button asChild variant="outline">
+              <Button asChild>
                   <Link href="/chat">
                       <MessageSquare />
                       <span className='ml-2'>Chat with AI</span>
