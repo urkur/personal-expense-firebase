@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   extractReceiptData,
   type ExtractReceiptDataOutput,
@@ -16,10 +16,13 @@ import {
 } from '@/components/ui/accordion';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
-import { AlertTriangle, FileText, MessageSquare } from 'lucide-react';
+import { AlertTriangle, FileText, MessageSquare, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useAuth } from '@/hooks/use-auth';
+import { useRouter } from 'next/navigation';
+import { SignOutButton } from '@/components/signout-button';
 
 type ReceiptWithId = ExtractReceiptDataOutput & { id: string };
 
@@ -28,6 +31,15 @@ export default function Home() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
 
   async function processReceipt(photoDataUri: string) {
     if (isProcessing) return;
@@ -63,6 +75,14 @@ export default function Home() {
     }
   }
 
+  if (loading || !user) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="p-4 border-b bg-card">
@@ -73,12 +93,15 @@ export default function Home() {
                     Raseed Lite
                 </h1>
             </div>
-            <Button asChild variant="outline">
-                <Link href="/chat">
-                    <MessageSquare />
-                    <span className='ml-2'>Chat with AI</span>
-                </Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button asChild variant="outline">
+                  <Link href="/chat">
+                      <MessageSquare />
+                      <span className='ml-2'>Chat with AI</span>
+                  </Link>
+              </Button>
+              <SignOutButton />
+            </div>
         </div>
       </header>
 
