@@ -3,6 +3,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Timestamp } from 'firebase-admin/firestore';
 
 export async function POST(req: NextRequest) {
+  if (!adminAuth || !adminDb) {
+    console.warn("Firebase Admin not initialized. Skipping user sync.");
+    // Return a success response so the client doesn't show an error.
+    return new NextResponse(JSON.stringify({ status: 'success', message: 'Admin not initialized' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  }
+
   try {
     const authorization = req.headers.get('Authorization');
     if (!authorization?.startsWith('Bearer ')) {
@@ -13,12 +19,10 @@ export async function POST(req: NextRequest) {
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     const { uid, email } = decodedToken;
 
-    // Check if user already exists in Firestore
     const userRef = adminDb.collection('users').doc(uid);
     const userDoc = await userRef.get();
 
     if (!userDoc.exists) {
-      // User is new, create a document for them
       await userRef.set({
         email,
         createdAt: Timestamp.now(),
